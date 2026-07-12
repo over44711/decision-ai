@@ -16,7 +16,7 @@ def ask_claude(prompt):
     client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
     message = client.messages.create(
         model="claude-sonnet-4-6",
-        max_tokens=2000,
+        max_tokens=4000,
         messages=[{"role": "user", "content": prompt}]
     )
     return message.content[0].text
@@ -26,7 +26,7 @@ def ask_gpt(prompt):
     client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     response = client.chat.completions.create(
         model="gpt-4o",
-        max_tokens=1000,
+        max_tokens=4000,
         messages=[{"role": "user", "content": prompt}]
     )
     return response.choices[0].message.content
@@ -105,9 +105,63 @@ def stage2(question, claude_s1, gpt_s1, gemini_s1):
     
     return claude_s2, gpt_s2, gemini_s2
 
+# Stage 3：最终综合总结
+def stage3(question, claude_s1, gpt_s1, gemini_s1, claude_s2, gpt_s2, gemini_s2):
+    print("\n========== STAGE 3：最终综合总结 ==========\n")
+    
+    template = load_prompt("stage3")
+    
+    prompt = template.replace("{{问题}}", question)\
+                     .replace("{{Claude第一轮回答}}", claude_s1)\
+                     .replace("{{ChatGPT第一轮回答}}", gpt_s1)\
+                     .replace("{{Gemini第一轮回答}}", gemini_s1)\
+                     .replace("{{Claude第二轮回答}}", claude_s2)\
+                     .replace("{{ChatGPT第二轮回答}}", gpt_s2)\
+                     .replace("{{Gemini第二轮回答}}", gemini_s2)
+    
+    print("--- 综合总结生成中... ---")
+    summary = ask_claude(prompt)
+    print(summary)
+    
+    return summary
+
 
 # 主程序
 if __name__ == "__main__":
     question = input("请输入你的决策问题：")
+    
+    print("\n选择最终总结者：")
+    print("1. Claude")
+    print("2. GPT")
+    print("3. Gemini")
+    judge_choice = input("请输入数字（1/2/3）：")
+    
     claude_s1, gpt_s1, gemini_s1 = stage1(question)
     claude_s2, gpt_s2, gemini_s2 = stage2(question, claude_s1, gpt_s1, gemini_s1)
+    
+    print("\n========== STAGE 3：最终综合总结 ==========\n")
+    
+    template = load_prompt("stage3")
+    prompt = template.replace("{{问题}}", question)\
+                     .replace("{{Claude第一轮回答}}", claude_s1)\
+                     .replace("{{ChatGPT第一轮回答}}", gpt_s1)\
+                     .replace("{{Gemini第一轮回答}}", gemini_s1)\
+                     .replace("{{Claude第二轮回答}}", claude_s2)\
+                     .replace("{{ChatGPT第二轮回答}}", gpt_s2)\
+                     .replace("{{Gemini第二轮回答}}", gemini_s2)
+    
+    print("--- 综合总结生成中... ---")
+    if judge_choice == "1":
+        print("总结者：Claude")
+        summary = ask_claude(prompt)
+    elif judge_choice == "2":
+        print("总结者：GPT")
+        summary = ask_gpt(prompt)
+    elif judge_choice == "3":
+        print("总结者：Gemini")
+        summary = ask_gemini(prompt)
+    else:
+        print("输入无效，默认使用Claude")
+        summary = ask_claude(prompt)
+    
+    print(summary)
