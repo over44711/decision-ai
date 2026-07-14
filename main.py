@@ -50,20 +50,22 @@ def ask_gemini(prompt):
 # Stage 1：三个AI独立回答
 def stage1(question):
     print("\n========== STAGE 1：独立分析 ==========\n")
-    
     template = load_prompt("stage1")
     prompt = template.replace("{{问题}}", question)
     
-    print("--- Claude 回答中... ---")
+    print("⏳ Claude 分析中...（1/3）")
     claude_answer = ask_claude(prompt)
+    print("✅ Claude 完成")
     print(claude_answer)
     
-    print("\n--- GPT 回答中... ---")
+    print("\n⏳ GPT 分析中...（2/3）")
     gpt_answer = ask_gpt(prompt)
+    print("✅ GPT 完成")
     print(gpt_answer)
     
-    print("\n--- Gemini 回答中... ---")
+    print("\n⏳ Gemini 分析中...（3/3）")
     gemini_answer = ask_gemini(prompt)
+    print("✅ Gemini 完成")
     print(gemini_answer)
     
     return claude_answer, gpt_answer, gemini_answer
@@ -71,10 +73,8 @@ def stage1(question):
 # Stage 2：三个AI互相评论
 def stage2(question, claude_s1, gpt_s1, gemini_s1):
     print("\n========== STAGE 2：对比与评论 ==========\n")
-    
     template = load_prompt("stage2")
     
-    # 给Claude看GPT和Gemini的回答
     claude_prompt = template.replace("{{问题}}", question)\
                             .replace("{{当前AI第一轮回答}}", claude_s1)\
                             .replace("{{AI_A_名称}}", "GPT")\
@@ -82,7 +82,6 @@ def stage2(question, claude_s1, gpt_s1, gemini_s1):
                             .replace("{{AI_B_名称}}", "Gemini")\
                             .replace("{{第三个AI的回答}}", gemini_s1)
     
-    # 给GPT看Claude和Gemini的回答
     gpt_prompt = template.replace("{{问题}}", question)\
                          .replace("{{当前AI第一轮回答}}", gpt_s1)\
                          .replace("{{AI_A_名称}}", "Claude")\
@@ -90,7 +89,6 @@ def stage2(question, claude_s1, gpt_s1, gemini_s1):
                          .replace("{{AI_B_名称}}", "Gemini")\
                          .replace("{{第三个AI的回答}}", gemini_s1)
     
-    # 给Gemini看Claude和GPT的回答
     gemini_prompt = template.replace("{{问题}}", question)\
                             .replace("{{当前AI第一轮回答}}", gemini_s1)\
                             .replace("{{AI_A_名称}}", "Claude")\
@@ -98,16 +96,19 @@ def stage2(question, claude_s1, gpt_s1, gemini_s1):
                             .replace("{{AI_B_名称}}", "GPT")\
                             .replace("{{第三个AI的回答}}", gpt_s1)
     
-    print("--- Claude 评论中... ---")
+    print("⏳ Claude 评论中...（1/3）")
     claude_s2 = ask_claude(claude_prompt)
+    print("✅ Claude 完成")
     print(claude_s2)
     
-    print("\n--- GPT 评论中... ---")
+    print("\n⏳ GPT 评论中...（2/3）")
     gpt_s2 = ask_gpt(gpt_prompt)
+    print("✅ GPT 完成")
     print(gpt_s2)
     
-    print("\n--- Gemini 评论中... ---")
+    print("\n⏳ Gemini 评论中...（3/3）")
     gemini_s2 = ask_gemini(gemini_prompt)
+    print("✅ Gemini 完成")
     print(gemini_s2)
     
     return claude_s2, gpt_s2, gemini_s2
