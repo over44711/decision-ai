@@ -145,19 +145,29 @@ if __name__ == "__main__":
     
     question = input("请输入你的决策问题：")
     
+    print("\n请补充与问题相关的背景信息可以提高分析质量。")
+    print("（直接回车跳过）")
+    background = input("背景信息（可选）：").strip()
+    
+    if background:
+        full_question = f"{question}\n\n【用户补充背景信息】：{background}"
+    else:
+        full_question = question
+    
     print("\n选择最终总结者（直接回车默认使用Claude）：")
     print("1. Claude（默认）")
     print("2. GPT")
     print("3. Gemini")
     judge_choice = input("请输入数字（1/2/3），或直接回车：").strip()
     
-    claude_s1, gpt_s1, gemini_s1 = stage1(question)
-    claude_s2, gpt_s2, gemini_s2 = stage2(question, claude_s1, gpt_s1, gemini_s1)
+    claude_s1, gpt_s1, gemini_s1 = stage1(full_question)
+    claude_s2, gpt_s2, gemini_s2 = stage2(full_question, claude_s1, gpt_s1, gemini_s1)
     
     print("\n========== STAGE 3：最终综合总结 ==========\n")
     
     template = load_prompt("stage3")
     prompt = template.replace("{{问题}}", question)\
+                     .replace("{{背景信息}}", background if background else "无")\
                      .replace("{{Claude第一轮回答}}", claude_s1)\
                      .replace("{{ChatGPT第一轮回答}}", gpt_s1)\
                      .replace("{{Gemini第一轮回答}}", gemini_s1)\
@@ -186,6 +196,8 @@ if __name__ == "__main__":
     with open(filename, "w", encoding="utf-8") as f:
         f.write(f"# 决策分析报告\n\n")
         f.write(f"**问题：** {question}\n\n")
+        if background:
+            f.write(f"**背景信息：** {background}\n\n")
         f.write(f"---\n\n## Stage 1：独立分析\n\n")
         f.write(f"### Claude\n{claude_s1}\n\n")
         f.write(f"### GPT\n{gpt_s1}\n\n")
