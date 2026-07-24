@@ -172,7 +172,7 @@ if __name__ == "__main__":
     # Decision sufficiency reminder / 决策充分度提示
     print("\n========== Decision Sufficiency / 决策充分度提示 ==========")
     print("Check the 'Information Still Needed' section in the summary for scores.")
-    print("请查看总结中"还应该补充的信息"部分的评分。")
+    print("请查看总结中 \"还应该补充的信息\"部分的评分。")
     print("• All items ≤ 4  →  Recommendation can be acted upon directly")
     print("• 所有缺失项 ≤ 4分 →  当前建议可直接参考执行")
     print("• Any item ≥ 5   →  Recommend providing that information first")
