@@ -78,7 +78,7 @@ You will be prompted to enter a question and optional background information. Th
 ---
 
 ## Project Structure
-
+```
 decision-ai/
 ├── main.py              # Main program
 ├── prompts/
@@ -89,8 +89,7 @@ decision-ai/
 ├── .env                 # API keys (excluded from git)
 ├── .gitignore
 └── requirements.txt
-
----
+```
 
 ## Key Design Decisions
 
