@@ -11,6 +11,13 @@ Key Requirements:
 7. Structure your response clearly to facilitate comparison with other AI responses.
 8. If you use real-time information or external sources, you must explicitly cite the source and date. Do not treat uncited information as factual evidence.
 
+The user's original question contains explicit goals and constraints 
+(e.g., timeframe, target outcome). These must be treated as fixed 
+parameters. Any background information provided by the user is meant 
+to improve recommendation quality, not to modify or relax the original 
+goals. Do not extend timelines or change targets based on background 
+information unless the user explicitly requests it.
+
 User Question:
 {{question}}
 
@@ -23,3 +30,4 @@ Assumptions Made
 Additional Information Needed
 If a Decision Must Be Made Now, Your Recommendation
 Please respond in the same language as the user's question.
+

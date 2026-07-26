@@ -401,3 +401,205 @@ if __name__ == "__main__":
         f.write(f"| **TOTAL** | | | **${total_cost_check:.4f}** |\n")
 
     print(f"✓ Report saved / 结果已保存：{filename}")
+
+    # Follow-up mechanism / 追问机制
+    try:
+        while True:
+            print("\n========== Follow-up / 追问 ==========")
+            print("Enter your follow-up question, or press Enter to exit.")
+            print("请输入追问问题，直接回车退出。")
+            followup_question = input("> ").strip()
+
+            if not followup_question:
+                print("\nThank you for using Decision AI. / 感谢使用 Decision AI。")
+                break
+
+            if len(followup_question) <= 10:
+                print(f"\n⚠️  Your input is very short: \"{followup_question}\"")
+                print("⚠️  输入内容较短，是否确认继续？")
+                print("Press Enter to confirm / 回车确认继续")
+                print("Type 'n' to re-enter / 输入 n 重新输入")
+                confirm = input("> ").strip().lower()
+                if confirm == "n":
+                    continue
+
+            print("\n⏳ Running follow-up analysis... / 追问分析中...")
+
+            followup_template = load_prompt("stage1")
+
+            def build_followup_prompt(ai_name, prior_response, prior_summary):
+                return f"""You are continuing an analysis from a previous round. Below is the context:
+Original Question: {question}
+Background Information: {background if background else "Not provided"}
+
+Your Previous Round 1 Response:
+{prior_response}
+
+Round 1 Final Synthesis (for reference only - treat as a working hypothesis, not ground truth):
+{prior_summary}
+
+Follow-up Question: {followup_question}
+
+Please analyze the follow-up question in light of your previous position and the round 1 synthesis.
+
+""" + followup_template.replace("{{question}}", followup_question)
+
+            # 后续所有代码保持在while循环里，缩进和这里对齐
+
+
+
+            claude_followup_prompt = build_followup_prompt("Claude", claude_s1, summary)
+            gpt_followup_prompt = build_followup_prompt("GPT", gpt_s1, summary)
+            gemini_followup_prompt = build_followup_prompt("Gemini", gemini_s1, summary)
+
+            # Run follow-up Stage 1 in parallel / 并行运行追问Stage 1
+            print("\n========== FOLLOW-UP STAGE 1: Independent Analysis / 追问独立分析 ==========\n")
+            print("⏳ All three AIs analyzing follow-up in parallel... / 三个AI并行分析追问中...")
+            t_start = time.time()
+
+            tasks = [
+                ("claude", ask_claude, claude_followup_prompt),
+                ("gpt", ask_gpt, gpt_followup_prompt),
+                ("gemini", ask_gemini, gemini_followup_prompt),
+            ]
+            fu_results = run_parallel(tasks)
+
+            claude_fu1_text, claude_fu1_tokens = fu_results.get("claude", (None, None))
+            gpt_fu1_text, gpt_fu1_tokens = fu_results.get("gpt", (None, None))
+            gemini_fu1_text, gemini_fu1_tokens = fu_results.get("gemini", (None, None))
+
+            track_tokens("claude", claude_fu1_tokens)
+            track_tokens("gpt", gpt_fu1_tokens)
+            track_tokens("gemini", gemini_fu1_tokens)
+
+            claude_fu1 = claude_fu1_text or "[Claude response unavailable / Claude响应失败]"
+            gpt_fu1 = gpt_fu1_text or "[GPT response unavailable / GPT响应失败]"
+            gemini_fu1 = gemini_fu1_text or "[Gemini response unavailable / Gemini响应失败]"
+
+            t_end = time.time()
+            print(f"✅ Follow-up Stage 1 complete ⏱ {t_end - t_start:.1f}s\n")
+            print(f"--- Claude ---\n{claude_fu1}\n")
+            print(f"--- GPT ---\n{gpt_fu1}\n")
+            print(f"--- Gemini ---\n{gemini_fu1}\n")
+
+            # Run follow-up Stage 2 in parallel / 并行运行追问Stage 2
+            print("\n========== FOLLOW-UP STAGE 2: Comparison & Critique / 追问对比评论 ==========\n")
+            fu2_template = load_prompt("stage2")
+
+            claude_fu2_prompt = fu2_template.replace("{{question}}", followup_question)\
+                                            .replace("{{current_AI_response}}", claude_fu1)\
+                                            .replace("{{AI_A_name}}", "GPT")\
+                                            .replace("{{AI_A_response}}", gpt_fu1)\
+                                            .replace("{{AI_B_name}}", "Gemini")\
+                                            .replace("{{AI_B_response}}", gemini_fu1)
+
+            gpt_fu2_prompt = fu2_template.replace("{{question}}", followup_question)\
+                                         .replace("{{current_AI_response}}", gpt_fu1)\
+                                         .replace("{{AI_A_name}}", "Claude")\
+                                         .replace("{{AI_A_response}}", claude_fu1)\
+                                         .replace("{{AI_B_name}}", "Gemini")\
+                                         .replace("{{AI_B_response}}", gemini_fu1)
+
+            gemini_fu2_prompt = fu2_template.replace("{{question}}", followup_question)\
+                                            .replace("{{current_AI_response}}", gemini_fu1)\
+                                            .replace("{{AI_A_name}}", "Claude")\
+                                            .replace("{{AI_A_response}}", claude_fu1)\
+                                            .replace("{{AI_B_name}}", "GPT")\
+                                            .replace("{{AI_B_response}}", gpt_fu1)
+
+            print("⏳ All three AIs critiquing follow-up in parallel... / 三个AI并行评论追问中...")
+            t_start = time.time()
+
+            tasks = [
+                ("claude", ask_claude, claude_fu2_prompt),
+                ("gpt", ask_gpt, gpt_fu2_prompt),
+                ("gemini", ask_gemini, gemini_fu2_prompt),
+            ]
+            fu2_results = run_parallel(tasks)
+
+            claude_fu2_text, claude_fu2_tokens = fu2_results.get("claude", (None, None))
+            gpt_fu2_text, gpt_fu2_tokens = fu2_results.get("gpt", (None, None))
+            gemini_fu2_text, gemini_fu2_tokens = fu2_results.get("gemini", (None, None))
+
+            track_tokens("claude", claude_fu2_tokens)
+            track_tokens("gpt", gpt_fu2_tokens)
+            track_tokens("gemini", gemini_fu2_tokens)
+
+            claude_fu2 = claude_fu2_text or "[Claude response unavailable / Claude响应失败]"
+            gpt_fu2 = gpt_fu2_text or "[GPT response unavailable / GPT响应失败]"
+            gemini_fu2 = gemini_fu2_text or "[Gemini response unavailable / Gemini响应失败]"
+
+            t_end = time.time()
+            print(f"✅ Follow-up Stage 2 complete ⏱ {t_end - t_start:.1f}s\n")
+
+            # Compress follow-up Stage 2 / 压缩追问Stage 2
+            claude_fu2_sum, _ = summarize(claude_fu2, "Claude")
+            gpt_fu2_sum, _ = summarize(gpt_fu2, "GPT")
+            gemini_fu2_sum, _ = summarize(gemini_fu2, "Gemini")
+
+            claude_fu2_sum = claude_fu2_sum or claude_fu2
+            gpt_fu2_sum = gpt_fu2_sum or gpt_fu2
+            gemini_fu2_sum = gemini_fu2_sum or gemini_fu2
+
+            # Follow-up Stage 3 / 追问Stage 3
+            print("\n========== FOLLOW-UP STAGE 3: Final Synthesis / 追问最终总结 ==========\n")
+            fu3_template = load_prompt("stage3")
+            fu3_prompt = fu3_template.replace("{{question}}", followup_question)\
+                                    .replace("{{background}}", background if background else "Not provided / 未提供")\
+                                    .replace("{{Claude_round1}}", claude_fu1)\
+                                    .replace("{{ChatGPT_round1}}", gpt_fu1)\
+                                    .replace("{{Gemini_round1}}", gemini_fu1)\
+                                    .replace("{{Claude_round2}}", claude_fu2_sum)\
+                                    .replace("{{ChatGPT_round2}}", gpt_fu2_sum)\
+                                    .replace("{{Gemini_round2}}", gemini_fu2_sum)
+
+            print("⏳ Generating follow-up synthesis... / 追问总结生成中...")
+            t_start = time.time()
+
+            if judge_choice == "2":
+                fu_summary, fu_summary_tokens = ask_gpt(fu3_prompt)
+                track_tokens("gpt", fu_summary_tokens)
+                fu_synthesizer = f"GPT ({GPT_MODEL})"
+            elif judge_choice == "3":
+                fu_summary, fu_summary_tokens = ask_gemini(fu3_prompt)
+                track_tokens("gemini", fu_summary_tokens)
+                fu_synthesizer = f"Gemini ({GEMINI_MODEL})"
+            else:
+                fu_summary, fu_summary_tokens = ask_claude(fu3_prompt)
+                track_tokens("claude", fu_summary_tokens)
+                fu_synthesizer = f"Claude ({CLAUDE_MODEL})"
+
+            if fu_summary is None:
+                fu_summary = "[Follow-up synthesis unavailable / 追问总结生成失败]"
+
+            t_end = time.time()
+            print(fu_summary)
+            print(f"\n✅ Follow-up Stage 3 complete ⏱ {t_end - t_start:.1f}s")
+
+            # Update summary for next round / 更新summary供下一轮追问使用
+            summary = fu_summary
+            claude_s1 = claude_fu1
+            gpt_s1 = gpt_fu1
+            gemini_s1 = gemini_fu1
+
+            # Append follow-up to saved file / 追加追问内容到文件
+            with open(filename, "a", encoding="utf-8") as f:
+                f.write(f"\n---\n\n## Follow-up Question / 追问问题\n\n")
+                f.write(f"**Follow-up / 追问：** {followup_question}\n\n")
+                f.write(f"### Follow-up Stage 1\n\n")
+                f.write(f"#### Claude\n{claude_fu1}\n\n")
+                f.write(f"#### GPT\n{gpt_fu1}\n\n")
+                f.write(f"#### Gemini\n{gemini_fu1}\n\n")
+                f.write(f"### Follow-up Stage 2\n\n")
+                f.write(f"#### Claude\n{claude_fu2}\n\n")
+                f.write(f"#### GPT\n{gpt_fu2}\n\n")
+                f.write(f"#### Gemini\n{gemini_fu2}\n\n")
+                f.write(f"### Follow-up Stage 3: Final Synthesis\n\n")
+                f.write(f"*Synthesized by / 总结者：{fu_synthesizer}*\n\n")
+                f.write(f"{fu_summary}\n")
+
+            print(f"\n✓ Follow-up appended to report / 追问已追加到报告：{filename}")
+
+    except KeyboardInterrupt:
+        print("\n\nProgram interrupted. / 程序已中断。")
+        print(f"✓ Report saved / 结果已保存：{filename}")
