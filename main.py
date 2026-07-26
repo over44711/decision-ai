@@ -317,14 +317,17 @@ if __name__ == "__main__":
         print("Synthesizer / 总结者：GPT")
         summary, summary_tokens = ask_gpt(prompt)
         track_tokens("gpt", summary_tokens)
+        synthesizer_name = f"GPT ({GPT_MODEL})"
     elif judge_choice == "3":
         print("Synthesizer / 总结者：Gemini")
         summary, summary_tokens = ask_gemini(prompt)
         track_tokens("gemini", summary_tokens)
+        synthesizer_name = f"Gemini ({GEMINI_MODEL})"
     else:
         print("Synthesizer / 总结者：Claude (default / 默认)")
         summary, summary_tokens = ask_claude(prompt)
         track_tokens("claude", summary_tokens)
+        synthesizer_name = f"Claude ({CLAUDE_MODEL})"
 
     if summary is None:
         summary = "[Final synthesis unavailable / 最终总结生成失败]"
@@ -382,7 +385,9 @@ if __name__ == "__main__":
         f.write(f"### Claude Summary\n{claude_s2_summary}\n\n")
         f.write(f"### GPT Summary\n{gpt_s2_summary}\n\n")
         f.write(f"### Gemini Summary\n{gemini_s2_summary}\n\n")
-        f.write(f"---\n\n## Stage 3: Final Synthesis / 最终总结\n\n{summary}\n\n")
+        f.write(f"---\n\n## Stage 3: Final Synthesis / 最终总结\n\n")
+        f.write(f"*Synthesized by / 总结者：{synthesizer_name}*\n\n")
+        f.write(f"{summary}\n\n")
         f.write(f"---\n\n## Token Usage & Cost / Token使用统计\n\n")
         f.write(f"| Model | Input Tokens | Output Tokens | Cost (USD) |\n")
         f.write(f"|-------|-------------|--------------|------------|\n")
