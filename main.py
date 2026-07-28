@@ -428,23 +428,25 @@ if __name__ == "__main__":
             followup_template = load_prompt("stage1")
 
             def build_followup_prompt(ai_name, prior_response, prior_summary):
-                return f"""You are continuing an analysis from a previous round. Below is the context:
-Original Question: {question}
-Background Information: {background if background else "Not provided"}
+                return f"""You are continuing an analysis from a previous round.
 
-Your Previous Round 1 Response:
-{prior_response}
+                        Original Question: {question}
+                        User Background Information (already provided, do not ask again): 
+                        {background if background else "Not provided"}
 
-Round 1 Final Synthesis (for reference only - treat as a working hypothesis, not ground truth):
-{prior_summary}
+                        Your Previous Round 1 Response:
+                        {prior_response}
 
-Follow-up Question: {followup_question}
+                        Round 1 Final Synthesis (for reference only - treat as working hypothesis):
+                        {prior_summary}
 
-Please analyze the follow-up question in light of your previous position and the round 1 synthesis.
+                        Follow-up Question: {followup_question}
 
-""" + followup_template.replace("{{question}}", followup_question)
+                        IMPORTANT: The background information above has already been provided by the user. 
+                        Do not list any of it as "missing information" in your response.
 
-            # 后续所有代码保持在while循环里，缩进和这里对齐
+                        """ + followup_template.replace("{{question}}", followup_question)
+
 
 
 
@@ -574,7 +576,22 @@ Please analyze the follow-up question in light of your previous position and the
 
             t_end = time.time()
             print(fu_summary)
+            total_end = time.time()
+            total_time = total_end - total_start
+            print(f"\n⏱ Total time / 总耗时：{total_time:.1f}s ({total_time/60:.1f} min)")
             print(f"\n✅ Follow-up Stage 3 complete ⏱ {t_end - t_start:.1f}s")
+
+            # 打印累计token统计
+            print("\n========== Token Usage & Cost (cumulative) / 累计Token统计 ==========")
+            total_cost = 0
+            for model, usage in token_tracker.items():
+                input_cost = usage["input"] / 1_000_000 * PRICES[model]["input"]
+                output_cost = usage["output"] / 1_000_000 * PRICES[model]["output"]
+                model_cost = input_cost + output_cost
+                total_cost += model_cost
+                print(f"{model.upper():8} | Input: {usage['input']:6,} | Output: {usage['output']:6,} | Cost: ${model_cost:.4f}")
+            print(f"{'TOTAL':8} | {'':22} | Cost: ${total_cost:.4f}")
+            print("======================================================================")
 
             # Update summary for next round / 更新summary供下一轮追问使用
             summary = fu_summary
@@ -598,8 +615,35 @@ Please analyze the follow-up question in light of your previous position and the
                 f.write(f"*Synthesized by / 总结者：{fu_synthesizer}*\n\n")
                 f.write(f"{fu_summary}\n")
 
+            # 追加token统计到文件
+            with open(filename, "a", encoding="utf-8") as f:
+                f.write(f"\n---\n\n## Cumulative Token Usage / 累计Token统计\n\n")
+                f.write(f"| Model | Input Tokens | Output Tokens | Cost (USD) |\n")
+                f.write(f"|-------|-------------|--------------|------------|\n")
+                total_cost_check = 0
+                for model, usage in token_tracker.items():
+                    input_cost = usage["input"] / 1_000_000 * PRICES[model]["input"]
+                    output_cost = usage["output"] / 1_000_000 * PRICES[model]["output"]
+                    model_cost = input_cost + output_cost
+                    total_cost_check += model_cost
+                    f.write(f"| {model.upper()} | {usage['input']:,} | {usage['output']:,} | ${model_cost:.4f} |\n")
+                f.write(f"| **TOTAL** | | | **${total_cost_check:.4f}** |\n")
+
             print(f"\n✓ Follow-up appended to report / 追问已追加到报告：{filename}")
 
     except KeyboardInterrupt:
         print("\n\nProgram interrupted. / 程序已中断。")
         print(f"✓ Report saved / 结果已保存：{filename}")
+        
+        # 打印已使用的token统计
+        print("\n========== Token Usage & Cost (so far) / 已使用Token统计 ==========")
+        total_cost = 0
+        for model, usage in token_tracker.items():
+            input_cost = usage["input"] / 1_000_000 * PRICES[model]["input"]
+            output_cost = usage["output"] / 1_000_000 * PRICES[model]["output"]
+            model_cost = input_cost + output_cost
+            total_cost += model_cost
+            print(f"{model.upper():8} | Input: {usage['input']:6,} | Output: {usage['output']:6,} | Cost: ${model_cost:.4f}")
+        print(f"{'TOTAL':8} | {'':22} | Cost: ${total_cost:.4f}")
+        print("==================================================================")
+    
