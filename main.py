@@ -6,6 +6,9 @@ from google import genai
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
+import textwrap
+
+DEBUG = False
 
 CLAUDE_MODEL = "claude-sonnet-4-6"
 GPT_MODEL = "gpt-5.4"
@@ -143,6 +146,19 @@ Respond in the same language as the content below.
 {ai_name}'s response:
 {response}"""
     return ask_gemini(prompt)
+
+
+#extract the Round 1 Reference block from Stage 3 summary/提取Stage 3总结中的Round 1 Reference块
+def extract_reference_block(summary):
+    import re
+    # 匹配从 ## Round 1 Reference 开始到文档末尾的所有内容
+    match = re.search(r'(##\s*Round\s*\d+\s*Reference.*)', summary, re.DOTALL | re.IGNORECASE)
+    if match:
+        return match.group(1).strip()
+    # Fallback: return last 200 words
+    words = summary.split()
+    return " ".join(words[-200:]) if len(words) > 200 else summary
+
 
 # Stage 1: Independent analysis / 三个AI独立回答
 def stage1(question):
@@ -336,6 +352,12 @@ if __name__ == "__main__":
     print(summary)
     print(f"\n✅ Stage 3 complete / Stage 3完成 ⏱ {t_end - t_start:.1f}s")
 
+    # 初始化历史Reference列表
+    reference_history = []
+    # 提取第0轮的Reference块
+    ref_block = extract_reference_block(summary)
+    reference_history.append(f"[Round 0 - Main Question]\n{ref_block}")
+
     total_end = time.time()
     total_time = total_end - total_start
 
@@ -427,32 +449,44 @@ if __name__ == "__main__":
 
             followup_template = load_prompt("stage1")
 
-            def build_followup_prompt(ai_name, prior_response, prior_summary):
-                return f"""You are continuing an analysis from a previous round.
+            def build_followup_prompt(ai_name, prior_response, all_references):
 
-                        Original Question: {question}
-                        User Background Information (already provided, do not ask again): 
-                        {background if background else "Not provided"}
+                if DEBUG:
+                    print(f"\n🔍 reference_history 内容：")
+                    for i, ref in enumerate(all_references):
+                        print(f"  [{i}] {ref[:100]}...")
 
-                        Your Previous Round 1 Response:
-                        {prior_response}
+                history_context = "\n\n".join(all_references)
+                prompt = f"""You are continuing a multi-round analysis.
 
-                        Round 1 Final Synthesis (for reference only - treat as working hypothesis):
-                        {prior_summary}
+Original Question: {question}
+User Background Information (already provided, do not ask again): 
+{background if background else "Not provided"}
 
-                        Follow-up Question: {followup_question}
+Your Previous Round Response:
+{prior_response}
 
-                        IMPORTANT: The background information above has already been provided by the user. 
-                        Do not list any of it as "missing information" in your response.
+Analysis History - Key Points from All Previous Rounds (non-binding reference):
+{history_context}
 
-                        """ + followup_template.replace("{{question}}", followup_question)
+Follow-up Question: {followup_question}
+
+IMPORTANT: 
+- Background information above has already been provided. Do not list any of it as missing.
+- The analysis history above shows the evolution of recommendations across rounds.
+- You may reference or challenge any previous conclusions.
+
+""" + followup_template.replace("{{question}}", followup_question)
+
+                # 临时调试：打印prompt前500字
+                print(f"\n🔍 DEBUG [{ai_name}] prompt preview:\n{prompt[:500]}\n")
+                return prompt
 
 
 
-
-            claude_followup_prompt = build_followup_prompt("Claude", claude_s1, summary)
-            gpt_followup_prompt = build_followup_prompt("GPT", gpt_s1, summary)
-            gemini_followup_prompt = build_followup_prompt("Gemini", gemini_s1, summary)
+            claude_followup_prompt = build_followup_prompt("Claude", claude_s1, reference_history)
+            gpt_followup_prompt = build_followup_prompt("GPT", gpt_s1, reference_history)
+            gemini_followup_prompt = build_followup_prompt("Gemini", gemini_s1, reference_history)
 
             # Run follow-up Stage 1 in parallel / 并行运行追问Stage 1
             print("\n========== FOLLOW-UP STAGE 1: Independent Analysis / 追问独立分析 ==========\n")
@@ -535,13 +569,9 @@ if __name__ == "__main__":
             print(f"✅ Follow-up Stage 2 complete ⏱ {t_end - t_start:.1f}s\n")
 
             # Compress follow-up Stage 2 / 压缩追问Stage 2
-            claude_fu2_sum, _ = summarize(claude_fu2, "Claude")
-            gpt_fu2_sum, _ = summarize(gpt_fu2, "GPT")
-            gemini_fu2_sum, _ = summarize(gemini_fu2, "Gemini")
-
-            claude_fu2_sum = claude_fu2_sum or claude_fu2
-            gpt_fu2_sum = gpt_fu2_sum or gpt_fu2
-            gemini_fu2_sum = gemini_fu2_sum or gemini_fu2
+            claude_fu2_sum, gpt_fu2_sum, gemini_fu2_sum = summarize_stage2(
+                claude_fu2, gpt_fu2, gemini_fu2
+            )
 
             # Follow-up Stage 3 / 追问Stage 3
             print("\n========== FOLLOW-UP STAGE 3: Final Synthesis / 追问最终总结 ==========\n")
@@ -598,6 +628,17 @@ if __name__ == "__main__":
             claude_s1 = claude_fu1
             gpt_s1 = gpt_fu1
             gemini_s1 = gemini_fu1
+
+            # 提取本轮Reference块并加入历史
+            ref_block = extract_reference_block(fu_summary)
+            reference_history.append(f"[Round {len(reference_history)} - Follow-up: {followup_question[:50]}...]\n{ref_block}")
+
+            # 无条件累积用户输入为上下文 / accumulate all user input as context
+            background += f"\n[Round {len(reference_history)-1} user input]: {followup_question}"
+
+            MAX_BG_CHARS = 3000
+            if len(background) > MAX_BG_CHARS:
+                background = background[:500] + "\n...[earlier context omitted]...\n" + background[-2500:]
 
             # Append follow-up to saved file / 追加追问内容到文件
             with open(filename, "a", encoding="utf-8") as f:

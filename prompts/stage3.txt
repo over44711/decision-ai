@@ -91,3 +91,32 @@ Review your "Information Still Needed" section one more time.
 Cross-check every item against the user background above. 
 Remove any item that was already provided. If all items are already 
 provided, write "All critical information has been provided."
+
+---
+
+After completing all sections above, evaluate whether the original question requires a concrete deliverable beyond analysis.
+
+If yes, generate it under the following heading:
+
+## Recommended Action Plan
+[Generate the concrete deliverable here]
+
+Examples of when to generate this section:
+- Training or workout plans → generate the actual schedule with exercises, sets, duration
+- Learning roadmaps → generate the week-by-week study plan
+- Meal or diet plans → generate the actual menu or food list
+- Templates or checklists → generate the actual template
+- Step-by-step guides → generate the actual steps
+- Budget or financial plans → generate the actual breakdown
+- Travel itineraries → generate the day-by-day plan
+
+Examples of when to SKIP this section:
+- Pure comparison questions (A vs B, Python vs JavaScript)
+- Should I do X analysis
+- Risk or feasibility assessment
+- Career direction or strategy questions
+- Ethical dilemma analysis
+
+Use your judgment. If the user would benefit from a concrete, actionable output in addition to the analysis, generate it. If the analysis itself is the primary deliverable, skip this section entirely.
+
+Please respond in the same language as the user's question.
